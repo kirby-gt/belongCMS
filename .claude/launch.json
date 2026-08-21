@@ -1,0 +1,43 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "web",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev"],
+      "cwd": "web",
+      "port": 5173
+    },
+    {
+      "name": "cotn-website",
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["-m", "http.server", "--directory", "D:/Apps in Antigravity/COTN Website", "8642"],
+      "port": 8642
+    },
+    {
+      "name": "mglory-org",
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["-m", "http.server", "--directory", "D:/ClaudeCode Apps/mglory.org", "8643"],
+      "port": 8643
+    },
+    {
+      "name": "crewtracker-web",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["--prefix", "D:/CLAUDE~1/CREWTR~1/web", "run", "dev"],
+      "port": 4280,
+      "autoPort": true
+    },
+    {
+      "name": "facilities-api",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["--prefix", "D:/APPSIN~1/FACILI~1/api", "run", "dev"],
+      "port": 3002
+    },
+    {
+      "name": "facilities-web",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["--prefix", "D:/APPSIN~1/FACILI~1/web", "run", "dev"],
+      "port": 5174
+    }
+  ]
+}
