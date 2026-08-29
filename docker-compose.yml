@@ -9,7 +9,8 @@ services:
     volumes:
       - db_data:/var/lib/postgresql/data
       - ./db/schema.sql:/docker-entrypoint-initdb.d/schema.sql
-    # DB ports removed from public mapping for security (Traefik does not need to proxy this)
+    ports:
+      - "5432:5432"
 
   api:
     build: ./api
@@ -21,54 +22,27 @@ services:
       JWT_SECRET: ${JWT_SECRET:-change-this-secret-in-production}
       PORT: 3001
       # Password-reset email. Without RESEND_API_KEY the reset link is logged to
-      # the API container's stdout instead of emailed.
+      # the api container's stdout instead of emailed. Set APP_URL to the public
+      # origin of the web app so the link in the email is correct.
       RESEND_API_KEY: ${RESEND_API_KEY:-}
       MAIL_FROM: ${MAIL_FROM:-Belong <noreply@belong.cyberworksgy.com>}
-      APP_URL: ${APP_URL:-https://belong.cyberworksgy.com}
+      APP_URL: ${APP_URL:-http://localhost:5173}
     volumes:
       - uploads_data:/app/uploads
-    labels:
-      - "traefik.enable=true"
-      # Route requests starting with /api to the backend container
-      - "traefik.http.routers.belong-api.rule=Host(`belong.cyberworksgy.com`) && PathPrefix(`/api/`)"
-      # Strip the /api prefix before it hits the container (so /api/auth becomes /auth)
-      - "traefik.http.middlewares.belong-api-strip.stripprefix.prefixes=/api/"
-      - "traefik.http.routers.belong-api.middlewares=belong-api-strip"
-      - "traefik.http.services.belong-api.loadbalancer.server.port=3001"
-      # If you are using HTTPS with Let's Encrypt, uncomment and adjust the resolver below:
-      # - "traefik.http.routers.belong-api.entrypoints=websecure"
-      # - "traefik.http.routers.belong-api.tls=true"
-      # - "traefik.http.routers.belong-api.tls.certresolver=myresolver"
-    networks:
-      - default
-      - proxy # Change this to the network name your Traefik container uses
+    ports:
+      - "3001:3001"
 
   web:
     build:
       context: ./web
       args:
-        VITE_API_URL: ${VITE_API_URL:-https://belong.cyberworksgy.com/api}
+        VITE_API_URL: ${VITE_API_URL:-http://localhost:3001}
     restart: unless-stopped
     depends_on:
       - api
-    labels:
-      - "traefik.enable=true"
-      # Route all other requests on the domain to the frontend
-      - "traefik.http.routers.belong-web.rule=Host(`belong.cyberworksgy.com`)"
-      - "traefik.http.services.belong-web.loadbalancer.server.port=80"
-      # If you are using HTTPS with Let's Encrypt, uncomment and adjust the resolver below:
-      # - "traefik.http.routers.belong-web.entrypoints=websecure"
-      # - "traefik.http.routers.belong-web.tls=true"
-      # - "traefik.http.routers.belong-web.tls.certresolver=myresolver"
-    networks:
-      - default
-      - proxy # Change this to the network name your Traefik container uses
+    ports:
+      - "8080:80"
 
 volumes:
   db_data:
   uploads_data:
-
-networks:
-  default:
-  proxy:
-    external: true # Assumes Traefik is running on a shared external Docker network
