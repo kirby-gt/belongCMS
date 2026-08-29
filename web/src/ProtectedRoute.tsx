@@ -1,5 +1,6 @@
 import { Navigate, Outlet, NavLink, Link } from "react-router-dom";
 import { useAuth } from "./AuthContext";
+import { renewalState } from "./subscription";
 import ThemeToggle from "./components/ThemeToggle";
 
 function initials(name: string) {
@@ -22,6 +23,8 @@ export default function ProtectedRoute() {
   if (!user) return <Navigate to="/login" replace />;
 
   const showTrialBanner = organization?.plan_status === "trialing" && new Date(organization.trial_ends_at) > new Date();
+  const renewal = renewalState(organization);
+  const fmtDue = (d: Date) => d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
 
   return (
     <div className="app-shell">
@@ -36,12 +39,20 @@ export default function ProtectedRoute() {
         <NavLink to="/members" end className={({ isActive }) => (isActive ? "active" : "")}>
           Members
         </NavLink>
+        <NavLink to="/visitors" className={({ isActive }) => (isActive ? "active" : "")}>
+          Visitors
+        </NavLink>
         <NavLink to="/members/import" className={({ isActive }) => (isActive ? "active" : "")}>
           Import
         </NavLink>
         <NavLink to="/billing" className={({ isActive }) => (isActive ? "active" : "")}>
           Billing
         </NavLink>
+        {user.is_superadmin && (
+          <NavLink to="/admin" className={({ isActive }) => (isActive ? "active" : "")}>
+            Admin
+          </NavLink>
+        )}
         <div className="spacer" />
         <ThemeToggle />
         <div className="user-chip">
@@ -56,6 +67,18 @@ export default function ProtectedRoute() {
         <div className="trial-banner">
           {daysLeft(organization.trial_ends_at)} day{daysLeft(organization.trial_ends_at) === 1 ? "" : "s"} left in your
           free trial. <Link to="/billing">Subscribe now</Link>
+        </div>
+      )}
+      {renewal.phase === "upcoming" && (
+        <div className="trial-banner">
+          Your subscription is due {renewal.daysUntilDue === 0 ? "today" : `in ${renewal.daysUntilDue} day${renewal.daysUntilDue === 1 ? "" : "s"}`} ({fmtDue(renewal.dueDate)}).{" "}
+          <Link to="/billing">Pay & submit your reference</Link>
+        </div>
+      )}
+      {renewal.phase === "grace" && (
+        <div className="trial-banner trial-banner-urgent">
+          Your subscription was due {renewal.daysOverdue === 0 ? "today" : `${renewal.daysOverdue} day${renewal.daysOverdue === 1 ? "" : "s"} ago`}. Access ends in {renewal.daysLeft} day{renewal.daysLeft === 1 ? "" : "s"} unless payment is verified.{" "}
+          <Link to="/billing">Pay now</Link>
         </div>
       )}
       <main>

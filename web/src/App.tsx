@@ -3,6 +3,7 @@ import { AuthProvider } from "./AuthContext";
 import { ThemeProvider } from "./ThemeContext";
 import ProtectedRoute from "./ProtectedRoute";
 import SubscriptionGate from "./SubscriptionGate";
+import SuperAdminRoute from "./SuperAdminRoute";
 import Home from "./pages/Home";
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
@@ -13,6 +14,9 @@ import Dashboard from "./pages/Dashboard";
 import MembersList from "./pages/MembersList";
 import MemberForm from "./pages/MemberForm";
 import ImportMembers from "./pages/ImportMembers";
+import Visitors from "./pages/Visitors";
+import VisitorCheckin from "./pages/VisitorCheckin";
+import Admin from "./pages/Admin";
 
 function App() {
   return (
@@ -25,14 +29,19 @@ function App() {
             <Route path="/signup" element={<Signup />} />
             <Route path="/forgot-password" element={<ForgotPassword />} />
             <Route path="/reset-password" element={<ResetPassword />} />
+            <Route path="/welcome/:token" element={<VisitorCheckin />} />
             <Route element={<ProtectedRoute />}>
               <Route path="/billing" element={<Billing />} />
+              <Route element={<SuperAdminRoute />}>
+                <Route path="/admin" element={<Admin />} />
+              </Route>
               <Route element={<SubscriptionGate />}>
                 <Route path="/dashboard" element={<Dashboard />} />
                 <Route path="/members" element={<MembersList />} />
                 <Route path="/members/new" element={<MemberForm />} />
                 <Route path="/members/import" element={<ImportMembers />} />
                 <Route path="/members/:id" element={<MemberForm />} />
+                <Route path="/visitors" element={<Visitors />} />
               </Route>
             </Route>
           </Routes>

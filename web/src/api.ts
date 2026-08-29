@@ -35,6 +35,37 @@ export const api = {
   getOrganization: () => request("/organizations/me"),
   submitPayment: (payment_reference: string) =>
     request("/organizations/subscribe", { method: "POST", body: JSON.stringify({ payment_reference }) }),
+  rotateIntakeToken: () => request("/organizations/intake/rotate", { method: "POST" }),
+  setIntakeEnabled: (enabled: boolean) =>
+    request("/organizations/intake/toggle", { method: "POST", body: JSON.stringify({ enabled }) }),
+
+  // Public visitor check-in (no auth required).
+  getCheckinInfo: (token: string) => request(`/public/checkin/${token}`),
+  submitCheckin: (
+    token: string,
+    data: {
+      full_name: string;
+      phone?: string;
+      email?: string;
+      address?: string;
+      first_time?: boolean;
+      prayer_request?: string;
+    }
+  ) => request(`/public/checkin/${token}`, { method: "POST", body: JSON.stringify(data) }),
+
+  // Staff review of visitor check-ins.
+  getVisitorCheckins: (status = "new") => request(`/visitor-checkins?status=${status}`),
+  convertVisitorCheckin: (id: string) => request(`/visitor-checkins/${id}/convert`, { method: "POST" }),
+  dismissVisitorCheckin: (id: string) => request(`/visitor-checkins/${id}/dismiss`, { method: "POST" }),
+
+  // Platform super-admin (cross-tenant subscription management).
+  getAdminOrganizations: (status = "") =>
+    request(`/admin/organizations${status ? `?status=${status}` : ""}`),
+  activateOrg: (id: string, months = 1) =>
+    request(`/admin/organizations/${id}/activate`, { method: "POST", body: JSON.stringify({ months }) }),
+  extendOrgTrial: (id: string, days: number) =>
+    request(`/admin/organizations/${id}/extend-trial`, { method: "POST", body: JSON.stringify({ days }) }),
+  cancelOrg: (id: string) => request(`/admin/organizations/${id}/cancel`, { method: "POST" }),
 
   getMembers: (params: Record<string, string> = {}) =>
     request(`/members?${new URLSearchParams(params)}`),

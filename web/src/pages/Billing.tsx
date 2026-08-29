@@ -1,10 +1,15 @@
 import { useState, type FormEvent } from "react";
 import { useAuth } from "../AuthContext";
 import { api } from "../api";
+import { renewalState } from "../subscription";
 
 function daysLeft(trialEndsAt: string) {
   const ms = new Date(trialEndsAt).getTime() - Date.now();
   return Math.max(0, Math.ceil(ms / (24 * 60 * 60 * 1000)));
+}
+
+function fmtDate(s: string) {
+  return new Date(s).toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" });
 }
 
 const statusLabel: Record<string, string> = {
@@ -23,6 +28,10 @@ export default function Billing() {
   if (!organization) return null;
 
   const trialActive = organization.plan_status === "trialing" && new Date(organization.trial_ends_at) > new Date();
+  const renewal = renewalState(organization);
+  // Open the payment form whenever they're not fully paid-and-current: not active,
+  // or active but within the 5-day-before / 5-day-grace renewal window.
+  const showPaymentForm = organization.plan_status !== "active" || renewal.phase !== "none";
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -53,7 +62,20 @@ export default function Billing() {
           <p>
             Your subscription is active
             {organization.subscribed_at ? ` since ${new Date(organization.subscribed_at).toLocaleDateString()}` : ""}.
-            Thanks for subscribing!
+            {organization.current_period_end && (
+              <>
+                {" "}
+                {renewal.phase === "grace"
+                  ? `Payment was due on ${fmtDate(organization.current_period_end)} — you have ${renewal.daysLeft} day${renewal.daysLeft === 1 ? "" : "s"} of access left.`
+                  : `Next payment due ${fmtDate(organization.current_period_end)}.`}
+              </>
+            )}
+          </p>
+        )}
+
+        {organization.plan_status === "pending_review" && renewal.phase !== "none" && (
+          <p style={{ color: "var(--text-muted)", fontSize: 14 }}>
+            You still have access while we verify your payment.
           </p>
         )}
 
@@ -74,9 +96,9 @@ export default function Billing() {
           </p>
         )}
 
-        {organization.plan_status !== "active" && (
+        {showPaymentForm && (
           <>
-            <h2>Pay with MMG</h2>
+            <h2>{organization.plan_status === "active" ? "Renew with MMG" : "Pay with MMG"}</h2>
             <p style={{ color: "var(--text-muted)", fontSize: 14, marginBottom: 16 }}>
               Send your subscription payment via MMG mobile money to <strong>+592-XXX-XXXX</strong> (merchant code{" "}
               <strong>CHURCHMS</strong>), then enter the transaction reference below so we can verify it.

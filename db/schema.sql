@@ -13,6 +13,15 @@ create table if not exists organizations (
   created_at timestamptz not null default now()
 );
 
+-- Monthly subscription cycle. An active/pending_review org keeps access until
+-- current_period_end + a grace window; verifying a payment advances this by a
+-- month. Backfill existing paid orgs so this migration doesn't lock them out.
+alter table organizations add column if not exists current_period_end timestamptz;
+
+update organizations
+  set current_period_end = now() + interval '1 month'
+  where plan_status in ('active', 'pending_review') and current_period_end is null;
+
 create table if not exists households (
   id uuid primary key default gen_random_uuid(),
   organization_id uuid not null references organizations(id) on delete cascade,
@@ -102,6 +111,11 @@ create table if not exists users (
 
 create index if not exists idx_users_org on users(organization_id);
 
+-- Platform operator flag (cross-tenant). Unlike `role`, which is scoped to one
+-- organization, a super-admin can view every org and manage its subscription via
+-- the /admin API tier. Granted deliberately with api/src/promote-superadmin.ts.
+alter table users add column if not exists is_superadmin boolean not null default false;
+
 create table if not exists password_resets (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references users(id) on delete cascade,
@@ -110,3 +124,38 @@ create table if not exists password_resets (
   used boolean not null default false,
   created_at timestamptz not null default now()
 );
+
+-- Public visitor self-check-in (QR code intake).
+-- Each organization has an opaque, rotatable token that its QR code / link encodes;
+-- visitors scan it and submit their details with no login. Submissions land in
+-- visitor_checkins as 'new' for staff to review and convert into members.
+alter table organizations
+  add column if not exists public_intake_token text unique,
+  add column if not exists public_intake_enabled boolean not null default true;
+
+-- Backfill a token for any organization created before this feature existed.
+-- Two v4 UUIDs (hex, dashes stripped) = 64 unguessable chars, using only core
+-- functions so no pgcrypto extension is required. New orgs get their token from
+-- the API at signup instead.
+update organizations
+  set public_intake_token =
+    replace(gen_random_uuid()::text, '-', '') || replace(gen_random_uuid()::text, '-', '')
+  where public_intake_token is null;
+
+create table if not exists visitor_checkins (
+  id uuid primary key default gen_random_uuid(),
+  organization_id uuid not null references organizations(id) on delete cascade,
+  full_name text not null,
+  phone text,
+  email text,
+  address text,
+  first_time boolean,
+  prayer_request text,
+  status text not null default 'new'
+    check (status in ('new', 'converted', 'dismissed')),
+  converted_member_id uuid references members(id) on delete set null,
+  checked_in_at timestamptz not null default now(),   -- the auto-recorded entry time
+  created_at timestamptz not null default now()
+);
+
+create index if not exists idx_visitor_checkins_org on visitor_checkins(organization_id, status);

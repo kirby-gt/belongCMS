@@ -7,6 +7,7 @@ interface User {
   email: string;
   role: string;
   organization_id: string;
+  is_superadmin?: boolean;
 }
 
 interface Organization {
@@ -15,9 +16,12 @@ interface Organization {
   slug: string;
   plan_status: "trialing" | "active" | "pending_review" | "canceled";
   trial_ends_at: string;
+  current_period_end: string | null;
   payment_reference: string | null;
   payment_submitted_at: string | null;
   subscribed_at: string | null;
+  public_intake_token: string;
+  public_intake_enabled: boolean;
 }
 
 interface AuthContextValue {

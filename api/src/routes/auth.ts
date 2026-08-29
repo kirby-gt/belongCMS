@@ -3,11 +3,14 @@ import bcrypt from "bcryptjs";
 import { z } from "zod";
 import { query, withTransaction } from "../db.js";
 import { signToken } from "../auth.js";
+import { sendEmail, passwordResetEmail } from "../mailer.js";
 import crypto from "node:crypto";
 
 export const authRoutes = new Hono();
 
 const TRIAL_DAYS = 14;
+// Where the reset link points — the web app's origin, not the API's.
+const APP_URL = process.env.APP_URL || "http://localhost:5173";
 
 function slugify(name: string) {
   return (
@@ -28,8 +31,9 @@ authRoutes.post("/login", async (c) => {
     role: "admin" | "staff" | "leader";
     name: string;
     organization_id: string;
+    is_superadmin: boolean;
   }>(
-    "select id, email, password_hash, role, name, organization_id from users where email = $1",
+    "select id, email, password_hash, role, name, organization_id, is_superadmin from users where email = $1",
     [email]
   );
   const user = rows[0];
@@ -38,10 +42,23 @@ authRoutes.post("/login", async (c) => {
   const valid = await bcrypt.compare(password, user.password_hash);
   if (!valid) return c.json({ error: "Invalid email or password" }, 401);
 
-  const token = signToken({ id: user.id, email: user.email, role: user.role, organization_id: user.organization_id });
+  const token = signToken({
+    id: user.id,
+    email: user.email,
+    role: user.role,
+    organization_id: user.organization_id,
+    is_superadmin: user.is_superadmin,
+  });
   return c.json({
     token,
-    user: { id: user.id, name: user.name, email: user.email, role: user.role, organization_id: user.organization_id },
+    user: {
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      organization_id: user.organization_id,
+      is_superadmin: user.is_superadmin,
+    },
   });
 });
 
@@ -74,17 +91,17 @@ authRoutes.post("/signup", async (c) => {
     }
 
     const orgRows = await client.query(
-      `insert into organizations (name, slug, plan_status, trial_ends_at)
-       values ($1, $2, 'trialing', $3)
+      `insert into organizations (name, slug, plan_status, trial_ends_at, public_intake_token)
+       values ($1, $2, 'trialing', $3, $4)
        returning id`,
-      [body.organization_name, slug, trialEndsAt]
+      [body.organization_name, slug, trialEndsAt, crypto.randomBytes(16).toString("hex")]
     );
     const organizationId = orgRows.rows[0].id;
 
     const userRows = await client.query(
       `insert into users (organization_id, name, email, password_hash, role)
        values ($1, $2, $3, $4, 'admin')
-       returning id, name, email, role, organization_id`,
+       returning id, name, email, role, organization_id, is_superadmin`,
       [organizationId, body.admin_name, body.email, passwordHash]
     );
 
@@ -96,6 +113,7 @@ authRoutes.post("/signup", async (c) => {
     email: result.email,
     role: result.role,
     organization_id: result.organization_id,
+    is_superadmin: result.is_superadmin,
   });
   return c.json({ token, user: result }, 201);
 });
@@ -112,15 +130,22 @@ authRoutes.post("/forgot-password", async (c) => {
   if (user[0]) {
     const token = crypto.randomBytes(32).toString("hex");
     const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
-    
+
     await query(
       "insert into password_resets (user_id, token, expires_at) values ($1, $2, $3)",
       [user[0].id, token, expiresAt]
     );
-    
-    console.log(`[EMAIL MOCK] Password reset link for ${email}: http://localhost:5173/reset-password?token=${token}`);
+
+    const resetUrl = `${APP_URL}/reset-password?token=${token}`;
+    try {
+      await sendEmail({ to: email, ...passwordResetEmail(resetUrl) });
+    } catch (err) {
+      // Don't leak the failure to the caller (keeps the response identical whether
+      // or not the address exists); log it so an operator can see delivery problems.
+      console.error(`[forgot-password] failed to send reset email to ${email}:`, err);
+    }
   }
-  
+
   return c.json({ ok: true });
 });
 

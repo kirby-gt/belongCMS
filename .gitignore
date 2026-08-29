@@ -2,3 +2,7 @@ node_modules/
 dist/
 .env
 *.log
+
+# Per-developer local Docker overrides (restores localhost ports for running the
+# stack without Traefik). Compose merges this automatically if present.
+docker-compose.override.yml
