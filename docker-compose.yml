@@ -36,12 +36,14 @@ services:
     build:
       context: ./web
       args:
-        VITE_API_URL: ${VITE_API_URL:-http://localhost:3001}
+        # Same-origin by default: the web container's nginx proxies /api -> api:3001.
+        VITE_API_URL: ${VITE_API_URL:-/api}
     restart: unless-stopped
     depends_on:
       - api
-    ports:
-      - "8080:80"
+    # No host port here. For local dev, docker-compose.override.yml publishes 8080
+    # (see docker-compose.override.yml.example). In production, front it with a
+    # reverse proxy — see "Deploying behind Traefik" in the README.
 
 volumes:
   db_data:

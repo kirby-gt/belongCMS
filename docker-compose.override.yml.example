@@ -1,0 +1,12 @@
+# Copy to docker-compose.override.yml for local development. Compose merges it on
+# top of docker-compose.yml automatically. It is gitignored, so each machine /
+# server keeps its own.
+#
+# This example publishes the web app on http://localhost:8080. For a production
+# box behind Traefik, use labels instead of a port — see "Deploying behind
+# Traefik" in the README.
+
+services:
+  web:
+    ports:
+      - "8080:80"
