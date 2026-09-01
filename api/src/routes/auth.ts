@@ -3,7 +3,7 @@ import bcrypt from "bcryptjs";
 import { z } from "zod";
 import { query, withTransaction } from "../db.js";
 import { signToken } from "../auth.js";
-import { sendEmail, passwordResetEmail } from "../mailer.js";
+import { sendEmail, passwordResetEmail, welcomeEmail } from "../mailer.js";
 import crypto from "node:crypto";
 
 export const authRoutes = new Hono();
@@ -107,6 +107,21 @@ authRoutes.post("/signup", async (c) => {
 
     return userRows.rows[0];
   });
+
+  // Best-effort welcome email — never block or fail signup on a send error.
+  try {
+    await sendEmail({
+      to: result.email,
+      ...welcomeEmail({
+        name: result.name,
+        organization: body.organization_name,
+        trialEndsAt,
+        loginUrl: `${APP_URL}/login`,
+      }),
+    });
+  } catch (err) {
+    console.error(`[signup] failed to send welcome email to ${result.email}:`, err);
+  }
 
   const token = signToken({
     id: result.id,
