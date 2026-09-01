@@ -70,6 +70,7 @@ router to the web container, since Nginx handles `/api`). Don't create a local
 
 In `.env`:
 ```
+COMPOSE_FILE=docker-compose.yml:docker-compose.prod.yml
 APP_DOMAIN=belongcms.org
 APP_URL=https://belongcms.org
 # optional, defaults shown:
@@ -77,9 +78,10 @@ APP_URL=https://belongcms.org
 # TRAEFIK_CERTRESOLVER=letsencrypt
 # TRAEFIK_ENTRYPOINT=websecure
 ```
+`COMPOSE_FILE` makes every bare `docker compose` command pick up the overlay.
 Point the domain's A record at the server, then:
 ```
-docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+docker compose up -d --build
 ```
 Traefik fetches the cert on first request (~1 min). `web` has no published port
 in this mode; `db`/`api` still publish 5432/3001 — firewall them or add
