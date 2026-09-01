@@ -64,23 +64,26 @@ docker compose exec api npx tsx src/promote-superadmin.ts admin@yourchurch.org
 
 ### Deploying behind Traefik (domain + TLS)
 
-Instead of the override above, give `web` Traefik labels (Docker provider; adjust
-entrypoint / certresolver / network names to your Traefik) in
-`docker-compose.override.yml`:
-```yaml
-services:
-  web:
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.belong.rule=Host(`your-domain.example`)"
-      - "traefik.http.routers.belong.entrypoints=websecure"
-      - "traefik.http.routers.belong.tls=true"
-      - "traefik.http.routers.belong.tls.certresolver=letsencrypt"
-      - "traefik.http.services.belong.loadbalancer.server.port=80"
+Use the committed `docker-compose.prod.yml` overlay (Docker-provider Traefik; one
+router to the web container, since Nginx handles `/api`). Don't create a local
+`docker-compose.override.yml` on that box.
+
+In `.env`:
 ```
-Then set `APP_URL=https://your-domain.example` in `.env` (used for password-reset
-email links; `VITE_API_URL` stays `/api`). One route only — the Nginx `/api`
-proxy handles the API.
+APP_DOMAIN=belongcms.org
+APP_URL=https://belongcms.org
+# optional, defaults shown:
+# TRAEFIK_NETWORK=belongcms_default
+# TRAEFIK_CERTRESOLVER=letsencrypt
+# TRAEFIK_ENTRYPOINT=websecure
+```
+Point the domain's A record at the server, then:
+```
+docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+```
+Traefik fetches the cert on first request (~1 min). `web` has no published port
+in this mode; `db`/`api` still publish 5432/3001 — firewall them or add
+`ports: !reset []` overrides if that matters.
 
 ## What's built (v1)
 
