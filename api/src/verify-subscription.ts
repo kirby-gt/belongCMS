@@ -22,8 +22,15 @@ async function main() {
     process.exit(1);
   }
 
-  const rows = await query<{ name: string }>(
-    `update organizations set plan_status = 'active', subscribed_at = now() where id = $1 returning name`,
+  // Mirror POST /admin/organizations/:id/activate: mark active and advance the
+  // monthly period (a null current_period_end would otherwise fail orgHasAccess).
+  const rows = await query<{ name: string; current_period_end: string }>(
+    `update organizations
+     set plan_status = 'active',
+         subscribed_at = coalesce(subscribed_at, now()),
+         current_period_end = greatest(current_period_end, now()) + interval '1 month'
+     where id = $1
+     returning name, current_period_end`,
     [orgId]
   );
 
@@ -33,7 +40,9 @@ async function main() {
     process.exit(1);
   }
 
-  console.log(`Subscription activated for "${rows[0].name}" (${orgId})`);
+  console.log(
+    `Subscription activated for "${rows[0].name}" (${orgId}); paid through ${rows[0].current_period_end}`
+  );
   await pool.end();
 }
 
