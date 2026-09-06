@@ -119,24 +119,20 @@ export default function MemberForm() {
       {error && <p className="error">{error}</p>}
 
       {isEdit && (
-        <div style={{ marginBottom: "2rem", display: "flex", flexDirection: "column", gap: "10px" }}>
+        <div className="photo-block">
           {form.photo_url ? (
-            <img 
-              src={`${import.meta.env.VITE_API_URL || "http://localhost:3001"}${form.photo_url}`} 
-              alt="Profile" 
-              style={{ width: 100, height: 100, borderRadius: "50%", objectFit: "cover" }} 
+            <img
+              className="photo-thumb"
+              src={`${import.meta.env.VITE_API_URL || "http://localhost:3001"}${form.photo_url}`}
+              alt="Profile"
             />
           ) : (
-            <div style={{ width: 100, height: 100, borderRadius: "50%", background: "#eee", display: "flex", alignItems: "center", justifyContent: "center", color: "#888" }}>
-              No photo
-            </div>
+            <div className="photo-thumb photo-thumb-empty">No photo</div>
           )}
-          <div>
-            <label style={{ cursor: "pointer", display: "inline-block", padding: "0.5rem 1rem", background: "#f0f0f0", borderRadius: "4px" }}>
-              {uploading ? "Uploading..." : "Upload photo"}
-              <input type="file" accept="image/*" style={{ display: "none" }} onChange={handlePhotoChange} disabled={uploading} />
-            </label>
-          </div>
+          <label className="photo-upload-btn">
+            {uploading ? "Uploading…" : "Upload photo"}
+            <input type="file" accept="image/*" onChange={handlePhotoChange} disabled={uploading} />
+          </label>
         </div>
       )}
 

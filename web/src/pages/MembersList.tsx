@@ -73,10 +73,10 @@ export default function MembersList() {
                 <td>
                   <Link to={`/members/${m.id}`} style={{ display: "flex", alignItems: "center", gap: "10px" }}>
                     {m.photo_url ? (
-                      <img 
-                        src={`${import.meta.env.VITE_API_URL || "http://localhost:3001"}${m.photo_url}`} 
-                        alt={m.full_name} 
-                        style={{ width: 32, height: 32, borderRadius: "50%", objectFit: "cover" }} 
+                      <img
+                        src={`${import.meta.env.VITE_API_URL || "http://localhost:3001"}${m.photo_url}`}
+                        alt={m.full_name}
+                        style={{ width: 32, height: 32, objectFit: "cover" }}
                       />
                     ) : (
                       <span className="name-avatar">

@@ -28,7 +28,7 @@ export default function Login() {
         <img src="/logo.png" alt="Belong" className="login-logo" />
         <h1>Belong</h1>
         <p className="subtitle">Sign in to continue</p>
-        {stateMessage && <p style={{ color: "green", marginBottom: "1rem" }}>{stateMessage}</p>}
+        {stateMessage && <p className="form-success">{stateMessage}</p>}
         {error && <p className="error">{error}</p>}
         <label>Email</label>
         <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
