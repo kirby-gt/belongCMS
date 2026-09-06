@@ -1,42 +1,31 @@
-# Production overlay: publish the web app through a SEPARATE, already-running
-# Traefik that discovers containers via the Docker provider.
+# Production overlay: publish the web app through the shared Traefik already
+# running on the VPS.
+#
+# That Traefik runs with `network_mode: host` and the Docker-label provider
+# (letsencrypt HTTP-01 resolver, global HTTP->HTTPS redirect). Host-mode Traefik
+# reaches this container directly over its bridge network, so there is NOTHING to
+# configure about networks here — the overlay only adds routing labels to `web`
+# (nginx already reverse-proxies /api -> api:3001, so one router is enough).
 #
 # Turn it on by putting this in .env (so every bare `docker compose` keeps it):
 #   COMPOSE_FILE=docker-compose.yml:docker-compose.prod.yml
 #   APP_DOMAIN=belongcms.org
 #   APP_URL=https://belongcms.org
-#   TRAEFIK_NETWORK=proxy        # <-- REQUIRED: the external docker network your
-#                               #     Traefik is attached to (see `docker network ls`)
 # Optional in .env (defaults shown):
 #   TRAEFIK_CERTRESOLVER=letsencrypt   # your Traefik's ACME resolver name
 #   TRAEFIK_ENTRYPOINT=websecure       # your Traefik's TLS entrypoint name
 #
-# The web container's nginx already reverse-proxies /api -> api:3001, so this is
-# a single router to the web container — no API route needed.
-#
-# Why the explicit network: Traefik can only route to a container that shares a
-# network with it. This overlay puts `web` on TRAEFIK_NETWORK *in addition to*
-# this project's default network (which web still needs to reach `api`), and
-# points the router at that same network by name. Without this, Traefik finds
-# the labels but has no reachable address for the service and silently drops the
-# router -> a bare "404 page not found" on the domain.
+# Do NOT also keep a docker-compose.override.yml on this box — if COMPOSE_FILE
+# is ever not picked up, the override silently wins and `web` comes up with no
+# Traefik labels (bare "404 page not found" on the domain).
 
 services:
   web:
-    networks:
-      - default
-      - traefik
     labels:
       - "traefik.enable=true"
-      - "traefik.docker.network=${TRAEFIK_NETWORK:?set TRAEFIK_NETWORK in .env to your Traefik network name}"
-      - "traefik.http.routers.belongcms.rule=Host(`${APP_DOMAIN:?set APP_DOMAIN in .env}`)"
+      - "traefik.http.routers.belongcms.rule=Host(`${APP_DOMAIN:?set APP_DOMAIN in .env}`) || Host(`www.${APP_DOMAIN}`)"
       - "traefik.http.routers.belongcms.entrypoints=${TRAEFIK_ENTRYPOINT:-websecure}"
       - "traefik.http.routers.belongcms.tls=true"
       - "traefik.http.routers.belongcms.tls.certresolver=${TRAEFIK_CERTRESOLVER:-letsencrypt}"
       - "traefik.http.routers.belongcms.service=belongcms"
       - "traefik.http.services.belongcms.loadbalancer.server.port=80"
-
-networks:
-  traefik:
-    external: true
-    name: ${TRAEFIK_NETWORK:?set TRAEFIK_NETWORK in .env to your Traefik network name}

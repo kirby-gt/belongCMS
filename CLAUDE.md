@@ -8,6 +8,15 @@ Belong — church membership management as multi-tenant SaaS. Records member bio
 
 **Stack**: Hono (Node.js) API + PostgreSQL, React + Vite frontend, deployed via Docker Compose. The web container's Nginx serves the built SPA **and reverse-proxies `/api` to the API container**, so the whole app is one origin. No test suite exists in this repo.
 
+## Deployment workflow (required)
+
+Two rules govern how changes reach production:
+
+1. **PR gate — no direct pushes to `main`.** Every change to `main` goes through a reviewed pull request. Work on a branch, push it, open a PR, and let the maintainer review and merge on GitHub. This applies to one-line and config-only fixes too.
+2. **GitHub `main` is the deploy source of truth.** The VPS only ever runs code pulled from `main`. Deploy = merge the PR, then `git pull` on the VPS. Never move code onto the box another way — no `scp`/`rsync` of source or compose files, no editing files on the server, no `docker compose up --build` from uncommitted local state. The only thing edited in place on the VPS is its `.env` (gitignored, per-host).
+
+**VPS deploy steps**: `cd` to the repo, drop any local drift (`git checkout -- .`), `git pull` `main`; if `db/schema.sql` changed, re-apply it to the running DB (`docker compose exec -T db psql -U postgres -d church_membership < db/schema.sql` — idempotent, run the whole file) **before** rebuilding, so new code never hits a missing table/column; set any new `.env` values; then `docker compose up -d --build`.
+
 ## Commands
 
 **Database** (no migration tool — `db/schema.sql` is the single source of truth):
@@ -47,14 +56,14 @@ npm run preview
 
 **Docker Compose** (from repo root). The base `docker-compose.yml` is deployment-portable: `db` publishes 5432, `api` publishes 3001, `web` has **no host port** (its Nginx proxies `/api` internally, so `VITE_API_URL` defaults to `/api` and the app is single-origin). Each environment adds a port or a proxy via an overlay:
 - **Local**: `cp docker-compose.override.yml.example docker-compose.override.yml` (publishes `web` on 8080), then `docker compose up -d --build`.
-- **Behind Traefik (domain + TLS)**: set `APP_DOMAIN` and `COMPOSE_FILE=docker-compose.yml:docker-compose.prod.yml` in `.env` (so every bare `docker compose` keeps the overlay), then `docker compose up -d --build`. `docker-compose.prod.yml` adds one Traefik router to the `web` container (Docker provider; `TRAEFIK_NETWORK`/`TRAEFIK_CERTRESOLVER`/`TRAEFIK_ENTRYPOINT` override the defaults).
+- **Behind Traefik (domain + TLS)**: the deploy VPS runs a shared Traefik with `network_mode: host` and the Docker-label provider (letsencrypt HTTP-01). Set `COMPOSE_FILE=docker-compose.yml:docker-compose.prod.yml`, `APP_DOMAIN`, and `APP_URL` in `.env`, then `docker compose up -d --build`. `docker-compose.prod.yml` only adds routing labels to `web` (`Host(APP_DOMAIN) || Host(www.APP_DOMAIN)`, port 80) — host-mode Traefik reaches it over the bridge, so there is **no network config** (`TRAEFIK_CERTRESOLVER`/`TRAEFIK_ENTRYPOINT` default to `letsencrypt`/`websecure`). Don't keep a `docker-compose.override.yml` on that box — if `COMPOSE_FILE` isn't picked up it wins and `web` comes up unlabelled (bare 404).
 
 Seed inside the container: `docker compose exec api npx tsx src/seed.ts <email> <password> [name] [org]`.
 
 **Environment** (`.env` at repo root is the reference — see `.env.example`; `.env` is gitignored):
 - API: `DATABASE_URL`, `JWT_SECRET`, `PORT`, `RESEND_API_KEY` (blank → emails logged to stdout, not sent), `MAIL_FROM` (a Resend-verified domain in prod), `APP_URL` (public origin, used to build links in emails).
 - Web build arg: `VITE_API_URL` (default `/api`).
-- Compose/Traefik: `DB_PASSWORD`, `APP_DOMAIN`, `COMPOSE_FILE`, `TRAEFIK_NETWORK`, `TRAEFIK_CERTRESOLVER`, `TRAEFIK_ENTRYPOINT`.
+- Compose/Traefik: `DB_PASSWORD`, `APP_DOMAIN`, `COMPOSE_FILE`, `TRAEFIK_CERTRESOLVER`, `TRAEFIK_ENTRYPOINT`.
 
 ## Architecture
 

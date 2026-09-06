@@ -69,22 +69,20 @@ docker compose exec api npx tsx src/promote-superadmin.ts admin@yourchurch.org
 
 ### Deploying behind Traefik (domain + TLS)
 
-Assumes Traefik is **already running as its own stack**, discovering containers
-via the Docker provider, attached to a shared external network. The committed
-`docker-compose.prod.yml` overlay puts the `web` container on that network and
-adds one `Host()` router to it (Nginx still handles `/api` internally).
+Assumes a **shared Traefik already running on the box** with `network_mode: host`
+and the Docker-label provider (letsencrypt HTTP-01, global HTTP→HTTPS redirect).
+Host-mode Traefik reaches the container over its bridge network, so
+`docker-compose.prod.yml` only adds routing labels to `web` — no network config.
+Nginx still handles `/api` internally, so one router is enough.
 
 1. `rm -f docker-compose.override.yml` if it exists — on a Traefik box it must
    not be present (whenever `COMPOSE_FILE` isn't picked up it silently wins and
    `web` comes up with no Traefik labels → bare `404 page not found`).
-2. Find your Traefik network: `docker network ls` (often `proxy`, `traefik`,
-   `web`, or `edge`).
-3. In `.env`:
+2. In `.env`:
    ```
    COMPOSE_FILE=docker-compose.yml:docker-compose.prod.yml
    APP_DOMAIN=belongcms.org
    APP_URL=https://belongcms.org
-   TRAEFIK_NETWORK=proxy         # REQUIRED — your Traefik network from step 2
    # optional, defaults shown:
    # TRAEFIK_CERTRESOLVER=letsencrypt
    # TRAEFIK_ENTRYPOINT=websecure
@@ -93,13 +91,15 @@ adds one `Host()` router to it (Nginx still handles `/api` internally).
    pick up the overlay. If a deploy script runs `docker compose` from elsewhere
    or under `sudo`, pass `--env-file .env` or the explicit
    `-f docker-compose.yml -f docker-compose.prod.yml` instead.
-4. Point the domain's A record at the server, then `docker compose up -d --build`.
+3. Point the domain's A record (and `www`) at the server, then
+   `docker compose up -d --build`.
 
 Verify after a deploy:
 ```
-docker compose config | grep traefik.enable                 # overlay is merged
+docker compose config | grep traefik.http.routers.belongcms.rule   # overlay merged, right host
 docker inspect "$(docker compose ps -q web)" \
-  --format '{{json .NetworkSettings.Networks}}'              # web is on your Traefik network
+  --format '{{json .Config.Labels}}' | tr , '\n' | grep traefik      # labels on the running container
+curl -sI https://belongcms.org | head -1
 ```
 
 Traefik fetches the cert on first request (~1 min). `web` has no published port
