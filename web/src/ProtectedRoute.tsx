@@ -28,6 +28,26 @@ export default function ProtectedRoute() {
 
   return (
     <div className="app-shell">
+      {organization && (
+        <div className="church-banner">
+          <svg
+            className="church-banner-icon"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden="true"
+          >
+            <path d="M12 2v6" />
+            <path d="M9 5h6" />
+            <path d="M12 8 4 13v9h16v-9z" />
+            <path d="M9 22v-4a3 3 0 0 1 6 0v4" />
+          </svg>
+          <span className="church-banner-name">{organization.name}</span>
+        </div>
+      )}
       <nav className="topnav">
         <span className="brand">
           <img src="/logo.png" alt="" className="brand-mark" />

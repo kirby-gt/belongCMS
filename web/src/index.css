@@ -443,6 +443,31 @@ button:active {
 
 /* Top nav */
 
+.church-banner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 24px;
+  background: var(--primary);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+
+.church-banner-icon {
+  width: 15px;
+  height: 15px;
+  flex-shrink: 0;
+  opacity: 0.9;
+}
+
+.church-banner-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .topnav {
   display: flex;
   align-items: center;
@@ -1192,6 +1217,7 @@ button:active {
 
 @media print {
   .no-print,
+  .church-banner,
   .topnav,
   .trial-banner {
     display: none !important;
