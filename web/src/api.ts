@@ -100,10 +100,32 @@ export const api = {
 
   getDashboardSummary: () => request("/dashboard/summary"),
 
-  createOrGetService: (service_date: string, service_type = "Sunday") =>
-    request("/attendance/services", { method: "POST", body: JSON.stringify({ service_date, service_type }) }),
+  createOrGetService: (service_date: string, service_type = "Sunday", name?: string) =>
+    request("/attendance/services", {
+      method: "POST",
+      body: JSON.stringify({ service_date, service_type, name: name?.trim() || undefined }),
+    }),
   getServices: () => request("/attendance/services"),
+  updateService: (
+    serviceId: string,
+    data: { service_type?: string; name?: string | null; visitor_count?: number | null }
+  ) => request(`/attendance/services/${serviceId}`, { method: "PATCH", body: JSON.stringify(data) }),
+  deleteService: (serviceId: string) => request(`/attendance/services/${serviceId}`, { method: "DELETE" }),
+  getServiceSummary: (serviceId: string) => request(`/attendance/services/${serviceId}/summary`),
   getServiceAttendance: (serviceId: string) => request(`/attendance/services/${serviceId}/attendance`),
+  getMonthlyAttendance: (month: string) => request(`/attendance/monthly-summary?month=${month}`),
   checkIn: (serviceId: string, member_id: string, present: boolean) =>
     request(`/attendance/services/${serviceId}/checkin`, { method: "POST", body: JSON.stringify({ member_id, present }) }),
+
+  // Reports
+  getAttendanceSummaryReport: (start: string, end: string) =>
+    request(`/reports/attendance-summary?${new URLSearchParams({ start, end })}`),
+  getAbsenteesReport: (params: { weeks?: string; status?: string; ministry_id?: string } = {}) =>
+    request(`/reports/absentees?${new URLSearchParams(params)}`),
+  getMemberDirectoryReport: (params: { status?: string; ministry_id?: string; household_id?: string; sort?: string } = {}) =>
+    request(`/reports/member-directory?${new URLSearchParams(params)}`),
+  getMilestonesReport: (month: string) =>
+    request(`/reports/milestones?${new URLSearchParams({ month })}`),
+  getMinistryRosterReport: (ministry_id?: string) =>
+    request(`/reports/ministry-roster${ministry_id ? `?${new URLSearchParams({ ministry_id })}` : ""}`),
 };

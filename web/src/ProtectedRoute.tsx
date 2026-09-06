@@ -42,8 +42,17 @@ export default function ProtectedRoute() {
         <NavLink to="/visitors" className={({ isActive }) => (isActive ? "active" : "")}>
           Visitors
         </NavLink>
+        <NavLink to="/attendance" className={({ isActive }) => (isActive ? "active" : "")}>
+          Attendance
+        </NavLink>
+        <NavLink to="/reports" className={({ isActive }) => (isActive ? "active" : "")}>
+          Reports
+        </NavLink>
         <NavLink to="/members/import" className={({ isActive }) => (isActive ? "active" : "")}>
           Import
+        </NavLink>
+        <NavLink to="/guide" className={({ isActive }) => (isActive ? "active" : "")}>
+          Guide
         </NavLink>
         <NavLink to="/billing" className={({ isActive }) => (isActive ? "active" : "")}>
           Billing

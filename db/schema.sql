@@ -83,10 +83,18 @@ create table if not exists services (
   id uuid primary key default gen_random_uuid(),
   organization_id uuid not null references organizations(id) on delete cascade,
   service_date date not null,
-  service_type text not null default 'Sunday'  -- Sunday, midweek, special
+  service_type text not null default 'Sunday'  -- Sunday, Midweek, Special
 );
 
 create index if not exists idx_services_org on services(organization_id);
+
+-- Optional event name for a service (e.g. "Mother's Day", "Christmas service") and
+-- an optional manually-entered visitor headcount for that service. Both nullable,
+-- added after the table first shipped.
+alter table services add column if not exists name text;
+alter table services add column if not exists visitor_count integer;
+
+create index if not exists idx_services_org_date on services(organization_id, service_date);
 
 create table if not exists attendance (
   id uuid primary key default gen_random_uuid(),
@@ -159,3 +167,28 @@ create table if not exists visitor_checkins (
 );
 
 create index if not exists idx_visitor_checkins_org on visitor_checkins(organization_id, status);
+
+-- Membership status change log. The members table only keeps the *current*
+-- status; this records every transition (with a synthetic enrolment row per
+-- member, old_status null) so growth / conversion-pipeline reports can look
+-- back over time. Written from api/src/routes/members.ts on create / status
+-- change / import.
+create table if not exists member_status_history (
+  id uuid primary key default gen_random_uuid(),
+  organization_id uuid not null references organizations(id) on delete cascade,
+  member_id uuid not null references members(id) on delete cascade,
+  old_status text,                 -- null for the initial enrolment row
+  new_status text not null,
+  changed_at timestamptz not null default now()
+);
+
+create index if not exists idx_msh_org on member_status_history(organization_id, changed_at);
+create index if not exists idx_msh_member on member_status_history(member_id, changed_at);
+
+-- Backfill one synthetic "enrolled" row per existing member, dated to when the
+-- member record was created. Safe to re-run: only inserts where the member has
+-- no history rows yet.
+insert into member_status_history (organization_id, member_id, old_status, new_status, changed_at)
+select m.organization_id, m.id, null, m.membership_status, m.created_at
+from members m
+where not exists (select 1 from member_status_history h where h.member_id = m.id);

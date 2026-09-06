@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { z } from "zod";
-import { query } from "../db.js";
+import { query, withTransaction } from "../db.js";
 import type { AuthUser } from "../auth.js";
 import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
@@ -116,28 +116,39 @@ memberRoutes.post("/", async (c) => {
   const ministry_ids = rawMinistryIds ? await filterMinistryIdsForOrg(orgId, rawMinistryIds) : undefined;
   const householdId = await verifyHouseholdForOrg(orgId, m.household_id);
 
-  const rows = await query(
-    `insert into members
-      (organization_id, full_name, date_of_birth, gender, marital_status, phone, email, address,
-       membership_status, date_joined, baptism_date, occupation,
-       emergency_contact_name, emergency_contact_phone, household_id, is_head_of_household)
-     values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)
-     returning *`,
-    [
-      orgId, m.full_name, m.date_of_birth ?? null, m.gender ?? null, m.marital_status ?? null,
-      m.phone ?? null, m.email ?? null, m.address ?? null, m.membership_status,
-      m.date_joined ?? null, m.baptism_date ?? null, m.occupation ?? null,
-      m.emergency_contact_name ?? null, m.emergency_contact_phone ?? null,
-      householdId, m.is_head_of_household ?? false,
-    ]
-  );
-  const member = rows[0];
+  const member = await withTransaction(async (client) => {
+    const rows = await client.query(
+      `insert into members
+        (organization_id, full_name, date_of_birth, gender, marital_status, phone, email, address,
+         membership_status, date_joined, baptism_date, occupation,
+         emergency_contact_name, emergency_contact_phone, household_id, is_head_of_household)
+       values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)
+       returning *`,
+      [
+        orgId, m.full_name, m.date_of_birth ?? null, m.gender ?? null, m.marital_status ?? null,
+        m.phone ?? null, m.email ?? null, m.address ?? null, m.membership_status,
+        m.date_joined ?? null, m.baptism_date ?? null, m.occupation ?? null,
+        m.emergency_contact_name ?? null, m.emergency_contact_phone ?? null,
+        householdId, m.is_head_of_household ?? false,
+      ]
+    );
+    const created = rows.rows[0];
 
-  if (ministry_ids?.length) {
-    for (const ministryId of ministry_ids) {
-      await query("insert into member_ministries (member_id, ministry_id) values ($1,$2) on conflict do nothing", [member.id, ministryId]);
+    // Seed the status history with the enrolment row (old_status null).
+    await client.query(
+      `insert into member_status_history (organization_id, member_id, old_status, new_status)
+       values ($1, $2, null, $3)`,
+      [orgId, created.id, created.membership_status]
+    );
+
+    if (ministry_ids?.length) {
+      for (const ministryId of ministry_ids) {
+        await client.query("insert into member_ministries (member_id, ministry_id) values ($1,$2) on conflict do nothing", [created.id, ministryId]);
+      }
     }
-  }
+
+    return created;
+  });
 
   return c.json(member, 201);
 });
@@ -152,24 +163,51 @@ memberRoutes.put("/:id", async (c) => {
     (m as any).household_id = await verifyHouseholdForOrg(orgId, m.household_id);
   }
 
-  const fields = Object.keys(m);
-  if (fields.length) {
-    const setClause = fields.map((f, i) => `${f} = $${i + 3}`).join(", ");
-    await query(
-      `update members set ${setClause}, updated_at = now() where id = $1 and organization_id = $2`,
-      [id, orgId, ...fields.map((f) => (m as any)[f])]
-    );
-  }
-
-  if (ministry_ids) {
-    await query("delete from member_ministries where member_id = $1", [id]);
-    for (const ministryId of ministry_ids) {
-      await query("insert into member_ministries (member_id, ministry_id) values ($1,$2) on conflict do nothing", [id, ministryId]);
+  const updated = await withTransaction(async (client) => {
+    // If this update touches membership_status, capture the prior value first so
+    // a genuine change can be logged to member_status_history.
+    let priorStatus: string | undefined;
+    if ("membership_status" in m) {
+      const cur = await client.query<{ membership_status: string }>(
+        "select membership_status from members where id = $1 and organization_id = $2",
+        [id, orgId]
+      );
+      priorStatus = cur.rows[0]?.membership_status;
     }
-  }
 
-  const rows = await query("select * from members where id = $1 and organization_id = $2", [id, orgId]);
-  return c.json(rows[0]);
+    const fields = Object.keys(m);
+    if (fields.length) {
+      const setClause = fields.map((f, i) => `${f} = $${i + 3}`).join(", ");
+      await client.query(
+        `update members set ${setClause}, updated_at = now() where id = $1 and organization_id = $2`,
+        [id, orgId, ...fields.map((f) => (m as any)[f])]
+      );
+    }
+
+    if (
+      "membership_status" in m &&
+      priorStatus !== undefined &&
+      (m as any).membership_status !== priorStatus
+    ) {
+      await client.query(
+        `insert into member_status_history (organization_id, member_id, old_status, new_status)
+         values ($1, $2, $3, $4)`,
+        [orgId, id, priorStatus, (m as any).membership_status]
+      );
+    }
+
+    if (ministry_ids) {
+      await client.query("delete from member_ministries where member_id = $1", [id]);
+      for (const ministryId of ministry_ids) {
+        await client.query("insert into member_ministries (member_id, ministry_id) values ($1,$2) on conflict do nothing", [id, ministryId]);
+      }
+    }
+
+    const rows = await client.query("select * from members where id = $1 and organization_id = $2", [id, orgId]);
+    return rows.rows[0];
+  });
+
+  return c.json(updated);
 });
 
 memberRoutes.delete("/:id", async (c) => {
@@ -324,6 +362,12 @@ memberRoutes.post("/import", async (c) => {
           row.emergency_contact_name || null, row.emergency_contact_phone || null,
           householdId,
         ]
+      );
+
+      await query(
+        `insert into member_status_history (organization_id, member_id, old_status, new_status)
+         values ($1, $2, null, $3)`,
+        [orgId, inserted[0].id, status]
       );
 
       for (const ministryId of ministryIds) {

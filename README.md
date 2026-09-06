@@ -95,13 +95,13 @@ in this mode; `db`/`api` still publish 5432/3001 — firewall them or add
 - Search and filter members by name/status/ministry, with pagination
 - Attendance: create a service by date, check members in/out, view per-service attendance
 - CSV import: bulk-load members from a spreadsheet — download the template from the Import page, fill it in as you digitize paper records, upload. Household and ministry names are matched or created automatically. Failed rows are reported individually so one bad row doesn't block the rest.
+- Reports: attendance summary (with period-over-period comparison), absentee / at-risk list, member directory, birthdays & anniversaries by month, ministry roster — each downloadable as CSV and printable to PDF
 - Role-based login (admin/staff/leader roles exist in the schema; UI currently treats all logged-in users the same — restricting by role in the UI is a natural next step)
 
 ## Not yet built (roadmap)
-- Photo upload for member records
-- Birthday/anniversary reports
-- Export to Excel/PDF
-- Ministry leader dashboards (view-only access scoped to their ministry)
+- Native Excel (.xlsx) / server-rendered PDF export (reports currently export CSV and print to PDF via the browser)
+- Ministry-leader-scoped access to reports and dashboards
+- Growth / conversion-pipeline reports (the `member_status_history` log that feeds them is being recorded now)
 - Giving/tithes tracking (kept separate deliberately — flag when you're ready to add it, since it needs tighter access control)
 
 ## Data entry tip

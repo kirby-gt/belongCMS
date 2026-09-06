@@ -17,7 +17,8 @@ const FEATURES = [
   },
   {
     title: "Attendance",
-    description: "Create a service by date, check members in or out, and view attendance per service.",
+    description:
+      "Check members in for Sunday and special services like Mother's Day, with monthly averages and visitor counts per event.",
   },
   {
     title: "CSV import",

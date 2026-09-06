@@ -10,6 +10,7 @@ import { ministryRoutes } from "./routes/ministries.js";
 import { attendanceRoutes } from "./routes/attendance.js";
 import { organizationRoutes } from "./routes/organizations.js";
 import { dashboardRoutes } from "./routes/dashboard.js";
+import { reportRoutes } from "./routes/reports.js";
 import { visitorCheckinRoutes } from "./routes/visitor-checkins.js";
 import { adminRoutes } from "./routes/admin.js";
 import { requireAuth, requireActiveOrg, requireSuperAdmin } from "./auth.js";
@@ -40,6 +41,7 @@ app.use("/households/*", requireAuth, requireActiveOrg);
 app.use("/ministries/*", requireAuth, requireActiveOrg);
 app.use("/attendance/*", requireAuth, requireActiveOrg);
 app.use("/dashboard/*", requireAuth, requireActiveOrg);
+app.use("/reports/*", requireAuth, requireActiveOrg);
 app.use("/visitor-checkins/*", requireAuth, requireActiveOrg);
 
 app.route("/members", memberRoutes);
@@ -47,6 +49,7 @@ app.route("/households", householdRoutes);
 app.route("/ministries", ministryRoutes);
 app.route("/attendance", attendanceRoutes);
 app.route("/dashboard", dashboardRoutes);
+app.route("/reports", reportRoutes);
 app.route("/visitor-checkins", visitorCheckinRoutes);
 
 const port = Number(process.env.PORT) || 3001;
