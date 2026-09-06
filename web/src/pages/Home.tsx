@@ -52,10 +52,10 @@ export default function Home() {
       </nav>
 
       <header className="home-hero">
-        <h1>Church membership management, without the spreadsheet.</h1>
+        <h1>Keep your whole church on one register.</h1>
         <p className="home-hero-sub">
-          Belong is where your church records member bio data, membership status, households, ministries, and
-          attendance — built for congregations of 100 to 5,000 members.
+          Belong holds your members' bio data, membership status, households, ministries, and attendance in one
+          place — built for congregations of 100 to 5,000.
         </p>
         <div className="home-hero-actions">
           <Link to="/signup" className="btn-primary">
@@ -76,6 +76,12 @@ export default function Home() {
           </div>
         ))}
       </section>
+
+      <footer className="home-footer">
+        <span>© {new Date().getFullYear()} Belong</span>
+        <Link to="/login">Sign in</Link>
+        <Link to="/signup">Start a free trial</Link>
+      </footer>
     </div>
   );
 }
