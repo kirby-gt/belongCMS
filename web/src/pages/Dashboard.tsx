@@ -30,9 +30,9 @@ interface DashboardSummary {
 }
 
 const STATUS_COLORS: Record<string, string> = {
-  Visitor: "var(--chart-status-1)",
+  Member: "var(--chart-status-1)",
   "New convert": "var(--chart-status-2)",
-  Member: "var(--chart-status-3)",
+  Visitor: "var(--chart-status-3)",
   Inactive: "var(--chart-status-4)",
 };
 
