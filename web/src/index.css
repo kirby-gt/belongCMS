@@ -649,6 +649,16 @@ button:active {
   opacity: 0.8;
 }
 
+.app-credit a {
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.app-credit a:hover {
+  color: var(--text);
+}
+
 .theme-toggle {
   display: flex;
   align-items: center;

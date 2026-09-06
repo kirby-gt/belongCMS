@@ -81,7 +81,13 @@ export default function Home() {
         <span>© {new Date().getFullYear()} Belong</span>
         <Link to="/login">Sign in</Link>
         <Link to="/signup">Start a free trial</Link>
-        <span className="home-footer-credit">Developed by CyberWorks · 2026</span>
+        <span className="home-footer-credit">
+          Developed by{" "}
+          <a href="https://cyberworksgy.com" target="_blank" rel="noopener noreferrer">
+            CyberWorks
+          </a>{" "}
+          · 2026
+        </span>
       </footer>
     </div>
   );

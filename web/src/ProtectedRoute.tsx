@@ -194,7 +194,13 @@ export default function ProtectedRoute() {
               Sign out
             </button>
           </div>
-          <p className="app-credit">Developed by CyberWorks · 2026</p>
+          <p className="app-credit">
+            Developed by{" "}
+            <a href="https://cyberworksgy.com" target="_blank" rel="noopener noreferrer">
+              CyberWorks
+            </a>{" "}
+            · 2026
+          </p>
         </div>
       </aside>
 
