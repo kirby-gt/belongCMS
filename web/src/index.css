@@ -221,12 +221,12 @@ button:active {
   align-items: center;
   gap: 16px;
   padding: 22px 32px;
-  max-width: 1000px;
+  max-width: 1180px;
   margin: 0 auto;
 }
 
 .home-hero {
-  max-width: 1000px;
+  max-width: 1180px;
   margin: 0 auto;
   padding: 76px 32px 60px;
   text-align: left;
@@ -266,7 +266,7 @@ button:active {
 }
 
 .home-features {
-  max-width: 1000px;
+  max-width: 1180px;
   margin: 0 auto;
   padding: 12px 32px 72px;
   display: grid;
@@ -292,7 +292,7 @@ button:active {
 }
 
 .home-footer {
-  max-width: 1000px;
+  max-width: 1180px;
   margin: 0 auto;
   padding: 26px 32px 52px;
   border-top: 1px solid var(--border);
@@ -484,7 +484,7 @@ button:active {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 7px 24px;
+  padding: 7px 32px;
   background: var(--primary);
   color: #fff;
   font-size: 13px;
@@ -509,7 +509,7 @@ button:active {
   display: flex;
   align-items: center;
   gap: 4px;
-  padding: 12px 24px;
+  padding: 12px 32px;
   background: var(--surface);
   border-bottom: 1px solid var(--border);
   position: sticky;
@@ -610,9 +610,9 @@ button:active {
 /* Page layout */
 
 .page {
-  max-width: 960px;
+  max-width: 1180px;
   margin: 0 auto;
-  padding: 32px 24px;
+  padding: 32px 32px;
 }
 
 .page-header {
@@ -796,6 +796,7 @@ button:active {
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-sm);
   padding: 1.75rem 2rem 2rem;
+  max-width: 760px;
 }
 
 .member-form h2 {
