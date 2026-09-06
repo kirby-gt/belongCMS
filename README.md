@@ -40,6 +40,11 @@ Frontend runs on http://localhost:5173 — log in with the admin account you see
 
 ## Deploying on a VPS (Docker Compose)
 
+Two ways to expose the web app: **bare IP:port** (below), or **behind Traefik
+with a domain + TLS** (next section). Pick one — don't do both on the same box.
+
+### Bare IP:port
+
 From the project root:
 ```
 cp .env.example .env            # set DB_PASSWORD, JWT_SECRET; VITE_API_URL defaults to /api
@@ -64,25 +69,39 @@ docker compose exec api npx tsx src/promote-superadmin.ts admin@yourchurch.org
 
 ### Deploying behind Traefik (domain + TLS)
 
-Use the committed `docker-compose.prod.yml` overlay (Docker-provider Traefik; one
-router to the web container, since Nginx handles `/api`). Don't create a local
-`docker-compose.override.yml` on that box.
+Assumes Traefik is **already running as its own stack**, discovering containers
+via the Docker provider, attached to a shared external network. The committed
+`docker-compose.prod.yml` overlay puts the `web` container on that network and
+adds one `Host()` router to it (Nginx still handles `/api` internally).
 
-In `.env`:
+1. `rm -f docker-compose.override.yml` if it exists — on a Traefik box it must
+   not be present (whenever `COMPOSE_FILE` isn't picked up it silently wins and
+   `web` comes up with no Traefik labels → bare `404 page not found`).
+2. Find your Traefik network: `docker network ls` (often `proxy`, `traefik`,
+   `web`, or `edge`).
+3. In `.env`:
+   ```
+   COMPOSE_FILE=docker-compose.yml:docker-compose.prod.yml
+   APP_DOMAIN=belongcms.org
+   APP_URL=https://belongcms.org
+   TRAEFIK_NETWORK=proxy         # REQUIRED — your Traefik network from step 2
+   # optional, defaults shown:
+   # TRAEFIK_CERTRESOLVER=letsencrypt
+   # TRAEFIK_ENTRYPOINT=websecure
+   ```
+   `COMPOSE_FILE` makes every bare `docker compose` (run from this directory)
+   pick up the overlay. If a deploy script runs `docker compose` from elsewhere
+   or under `sudo`, pass `--env-file .env` or the explicit
+   `-f docker-compose.yml -f docker-compose.prod.yml` instead.
+4. Point the domain's A record at the server, then `docker compose up -d --build`.
+
+Verify after a deploy:
 ```
-COMPOSE_FILE=docker-compose.yml:docker-compose.prod.yml
-APP_DOMAIN=belongcms.org
-APP_URL=https://belongcms.org
-# optional, defaults shown:
-# TRAEFIK_NETWORK=belongcms_default
-# TRAEFIK_CERTRESOLVER=letsencrypt
-# TRAEFIK_ENTRYPOINT=websecure
+docker compose config | grep traefik.enable                 # overlay is merged
+docker inspect "$(docker compose ps -q web)" \
+  --format '{{json .NetworkSettings.Networks}}'              # web is on your Traefik network
 ```
-`COMPOSE_FILE` makes every bare `docker compose` command pick up the overlay.
-Point the domain's A record at the server, then:
-```
-docker compose up -d --build
-```
+
 Traefik fetches the cert on first request (~1 min). `web` has no published port
 in this mode; `db`/`api` still publish 5432/3001 — firewall them or add
 `ports: !reset []` overrides if that matters.
