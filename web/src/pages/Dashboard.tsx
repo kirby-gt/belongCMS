@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import { api } from "../api";
 import StatCard from "../components/charts/StatCard";
 import ChartCard from "../components/charts/ChartCard";
@@ -11,6 +12,21 @@ interface DashboardSummary {
   members_by_ministry: { name: string; count: number }[];
   membership_growth: { month: string; count: number }[];
   attendance_trend: { service_date: string; service_type: string; present: number; total: number }[];
+  attendance_this_month: {
+    month: string;
+    attended_service_count: number;
+    average_attendance: number | null;
+    sunday_average_attendance: number | null;
+    total_visitors: number;
+  };
+  upcoming_birthdays: {
+    id: string;
+    full_name: string;
+    date_of_birth: string;
+    next_birthday: string;
+    days_until: number;
+    turning_age: number;
+  }[];
 }
 
 const STATUS_COLORS: Record<string, string> = {
@@ -30,6 +46,13 @@ function formatServiceDate(date: string) {
   return new Date(year, month - 1, day).toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
 
+function formatBirthday(b: { next_birthday: string; days_until: number }) {
+  if (b.days_until === 0) return "Today";
+  if (b.days_until === 1) return "Tomorrow";
+  const [year, month, day] = b.next_birthday.split("-").map(Number);
+  return new Date(year, month - 1, day).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
+}
+
 export default function Dashboard() {
   const [data, setData] = useState<DashboardSummary | null>(null);
 
@@ -41,9 +64,11 @@ export default function Dashboard() {
     return <div className="page">Loading…</div>;
   }
 
-  const avgAttendance = data.attendance_trend.length
-    ? Math.round(data.attendance_trend.reduce((sum, s) => sum + s.present, 0) / data.attendance_trend.length)
-    : null;
+  const thisMonth = new Date(
+    Number(data.attendance_this_month.month.slice(0, 4)),
+    Number(data.attendance_this_month.month.slice(5, 7)) - 1,
+    1
+  ).toLocaleDateString(undefined, { month: "long" });
 
   return (
     <div className="page">
@@ -56,12 +81,39 @@ export default function Dashboard() {
         <StatCard label="Households" value={data.totals.households} />
         <StatCard label="Ministries" value={data.totals.ministries} />
         <StatCard
-          label={`Avg. attendance (last ${data.attendance_trend.length} service${data.attendance_trend.length === 1 ? "" : "s"})`}
-          value={avgAttendance ?? "—"}
+          label={`Avg. attendance (${thisMonth})`}
+          value={data.attendance_this_month.average_attendance ?? "—"}
         />
+        <StatCard label={`Visitors (${thisMonth})`} value={data.attendance_this_month.total_visitors} />
+        <StatCard label="Birthdays this week" value={data.upcoming_birthdays.length} />
       </div>
 
       <div className="dashboard-grid">
+        <div className="chart-card">
+          <div className="chart-card-header">
+            <div>
+              <h2>Upcoming birthdays</h2>
+              <p className="chart-card-subtitle">Next 7 days</p>
+            </div>
+          </div>
+          {data.upcoming_birthdays.length === 0 ? (
+            <p className="chart-empty">No birthdays in the next 7 days</p>
+          ) : (
+            <ul className="birthday-list">
+              {data.upcoming_birthdays.map((b) => (
+                <li key={`${b.id}-${b.next_birthday}`} className="birthday-row">
+                  <Link to={`/members/${b.id}`} className="birthday-name">
+                    {b.full_name}
+                  </Link>
+                  <span className="birthday-meta">
+                    {formatBirthday(b)} · turns {b.turning_age}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+
         <ChartCard
           title="Members by status"
           tableHeaders={["Status", "Members"]}
