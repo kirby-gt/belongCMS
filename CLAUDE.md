@@ -61,7 +61,7 @@ npm run preview
 Seed inside the container: `docker compose exec api npx tsx src/seed.ts <email> <password> [name] [org]`.
 
 **Environment** (`.env` at repo root is the reference — see `.env.example`; `.env` is gitignored):
-- API: `DATABASE_URL`, `JWT_SECRET`, `PORT`, `RESEND_API_KEY` (blank → emails logged to stdout, not sent), `MAIL_FROM` (a Resend-verified domain in prod), `APP_URL` (public origin, used to build links in emails).
+- API: `DATABASE_URL`, `JWT_SECRET`, `PORT`, `RESEND_API_KEY` (blank → emails logged to stdout, not sent), `MAIL_FROM` (a Resend-verified domain in prod), `APP_URL` (public origin, used to build links in emails), `SIGNUP_ALERT_EMAIL` (optional operator inbox notified on each new trial signup — see Transactional email below; blank/unset skips it), `PAYMENT_ALERT_EMAIL` (optional operator inbox notified whenever an org submits an MMG payment reference and enters `pending_review`; blank/unset skips it).
 - Web build arg: `VITE_API_URL` (default `/api`).
 - Compose/Traefik: `DB_PASSWORD`, `APP_DOMAIN`, `COMPOSE_FILE`, `TRAEFIK_CERTRESOLVER`, `TRAEFIK_ENTRYPOINT`.
 
@@ -103,7 +103,7 @@ When a route accepts a foreign id from the client that references another tenant
 
 ### Transactional email
 
-`api/src/mailer.ts` wraps Resend. `sendEmail({ to, subject, html, text })` sends via the API key; **if `RESEND_API_KEY` is unset it `console.log`s the message instead** so dev/test flows work without credentials. Templates (`passwordResetEmail`, `welcomeEmail`, …) are plain functions returning `{ subject, text, html }`; interpolated user-supplied strings are HTML-escaped. Callers send **best-effort** — wrapped in `try/catch`, failure logged, never blocking the request (see `/auth/signup` welcome mail and `/auth/forgot-password` reset link). Links in emails are built from `APP_URL`.
+`api/src/mailer.ts` wraps Resend. `sendEmail({ to, subject, html, text })` sends via the API key; **if `RESEND_API_KEY` is unset it `console.log`s the message instead** so dev/test flows work without credentials. Templates (`passwordResetEmail`, `welcomeEmail`, `signupAlertEmail`, `paymentSubmittedAlertEmail`, …) are plain functions returning `{ subject, text, html }`; interpolated user-supplied strings are HTML-escaped. Callers send **best-effort** — wrapped in `try/catch`, failure logged, never blocking the request (see `/auth/signup` welcome mail and `/auth/forgot-password` reset link). Links in emails are built from `APP_URL`. Two routes additionally alert an operator inbox, independent try/catch from any other email in the same handler so one failing never blocks another: `POST /auth/signup` sends `signupAlertEmail` to `SIGNUP_ALERT_EMAIL`, and `POST /organizations/subscribe` sends `paymentSubmittedAlertEmail` (with a link to `/admin`) to `PAYMENT_ALERT_EMAIL` — both no-ops when their env var is unset.
 
 ### Frontend conventions
 

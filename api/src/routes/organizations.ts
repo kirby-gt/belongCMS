@@ -3,8 +3,13 @@ import { z } from "zod";
 import crypto from "node:crypto";
 import { query } from "../db.js";
 import type { AuthUser } from "../auth.js";
+import { sendEmail, paymentSubmittedAlertEmail } from "../mailer.js";
 
 export const organizationRoutes = new Hono();
+
+// Where the admin-console link in the payment alert points — the web app's
+// origin, not the API's (mirrors APP_URL usage in routes/auth.ts).
+const APP_URL = process.env.APP_URL || "http://localhost:5173";
 
 organizationRoutes.get("/me", async (c) => {
   const user = c.get("user") as AuthUser;
@@ -34,7 +39,28 @@ organizationRoutes.post("/subscribe", async (c) => {
      returning id, name, slug, plan_status, trial_ends_at, payment_reference, payment_submitted_at, subscribed_at`,
     [user.organization_id, body.payment_reference]
   );
-  return c.json(rows[0]);
+  const org = rows[0];
+
+  // Best-effort operator notification — the org sits in `pending_review` (no
+  // paid access) until a super-admin verifies this from the /admin console.
+  const alertEmail = process.env.PAYMENT_ALERT_EMAIL;
+  if (alertEmail && org) {
+    try {
+      await sendEmail({
+        to: alertEmail,
+        ...paymentSubmittedAlertEmail({
+          organizationName: org.name,
+          paymentReference: body.payment_reference,
+          submittedByEmail: user.email,
+          adminUrl: `${APP_URL}/admin`,
+        }),
+      });
+    } catch (err) {
+      console.error(`[organizations] failed to send payment alert to ${alertEmail}:`, err);
+    }
+  }
+
+  return c.json(org);
 });
 
 // --- Public visitor check-in (QR code) settings ---

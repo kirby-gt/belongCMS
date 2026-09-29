@@ -100,8 +100,8 @@ export default function Billing() {
           <>
             <h2>{organization.plan_status === "active" ? "Renew with MMG" : "Pay with MMG"}</h2>
             <p style={{ color: "var(--text-muted)", fontSize: 14, marginBottom: 16 }}>
-              Send your subscription payment via MMG mobile money to <strong>+592-XXX-XXXX</strong> (merchant code{" "}
-              <strong>CHURCHMS</strong>), then enter the transaction reference below so we can verify it.
+              Send <strong>GYD $5,000/month</strong> via MMG mobile money to <strong>+592-681-1703</strong>, then
+              enter the transaction reference below so we can verify it.
             </p>
 
             {error && <p className="error">{error}</p>}

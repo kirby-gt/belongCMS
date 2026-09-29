@@ -27,6 +27,12 @@ services:
       RESEND_API_KEY: ${RESEND_API_KEY:-}
       MAIL_FROM: ${MAIL_FROM:-Belong <noreply@belongcms.org>}
       APP_URL: ${APP_URL:-http://localhost:5173}
+      # Operator inbox notified whenever a new church signs up for a trial.
+      # Blank/unset -> no alert is sent (only the admin's own welcome email).
+      SIGNUP_ALERT_EMAIL: ${SIGNUP_ALERT_EMAIL:-}
+      # Operator inbox notified whenever an org submits an MMG payment reference
+      # (pending_review). Blank/unset -> no alert is sent.
+      PAYMENT_ALERT_EMAIL: ${PAYMENT_ALERT_EMAIL:-}
     volumes:
       - uploads_data:/app/uploads
     ports:
