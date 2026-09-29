@@ -3,7 +3,7 @@ import bcrypt from "bcryptjs";
 import { z } from "zod";
 import { query, withTransaction } from "../db.js";
 import { signToken } from "../auth.js";
-import { sendEmail, passwordResetEmail, welcomeEmail } from "../mailer.js";
+import { sendEmail, passwordResetEmail, welcomeEmail, signupAlertEmail } from "../mailer.js";
 import crypto from "node:crypto";
 
 export const authRoutes = new Hono();
@@ -121,6 +121,25 @@ authRoutes.post("/signup", async (c) => {
     });
   } catch (err) {
     console.error(`[signup] failed to send welcome email to ${result.email}:`, err);
+  }
+
+  // Best-effort operator notification — separate inbox from the admin's welcome
+  // email, opt-in via SIGNUP_ALERT_EMAIL (unset = skip, no alert sent).
+  const alertEmail = process.env.SIGNUP_ALERT_EMAIL;
+  if (alertEmail) {
+    try {
+      await sendEmail({
+        to: alertEmail,
+        ...signupAlertEmail({
+          organizationName: body.organization_name,
+          adminName: result.name,
+          adminEmail: result.email,
+          trialEndsAt,
+        }),
+      });
+    } catch (err) {
+      console.error(`[signup] failed to send signup alert to ${alertEmail}:`, err);
+    }
   }
 
   const token = signToken({
