@@ -17,7 +17,22 @@ import { requireAuth, requireActiveOrg, requireSuperAdmin } from "./auth.js";
 
 const app = new Hono();
 
-app.use("*", cors());
+// Deployed behind nginx the app is single-origin, so no CORS headers are needed
+// and none are sent. CORS_ORIGINS (comma-separated) is only for running the Vite
+// dev server against the API on a different port.
+const corsOrigins = (process.env.CORS_ORIGINS ?? "")
+  .split(",")
+  .map((o) => o.trim())
+  .filter(Boolean);
+if (corsOrigins.length) {
+  app.use("*", cors({ origin: corsOrigins }));
+}
+
+// Stop browsers from sniffing an upload into something executable (HTML/SVG).
+app.use("/uploads/*", async (c, next) => {
+  await next();
+  c.res.headers.set("X-Content-Type-Options", "nosniff");
+});
 app.use("/uploads/*", serveStatic({ root: "./" }));
 
 app.get("/health", (c) => c.json({ ok: true }));

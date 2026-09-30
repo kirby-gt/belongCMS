@@ -157,6 +157,12 @@ memberRoutes.put("/:id", async (c) => {
   const orgId = (c.get("user") as AuthUser).organization_id;
   const id = c.req.param("id");
   const body = memberSchema.partial().parse(await c.req.json());
+
+  // Every write below (including the member_ministries reset, which has no
+  // organization_id of its own) must only ever touch this org's member.
+  const owned = await query("select id from members where id = $1 and organization_id = $2", [id, orgId]);
+  if (!owned[0]) return c.json({ error: "Not found" }, 404);
+
   const { ministry_ids: rawMinistryIds, ...m } = body;
   const ministry_ids = rawMinistryIds ? await filterMinistryIdsForOrg(orgId, rawMinistryIds) : undefined;
   if ("household_id" in m) {
@@ -217,6 +223,21 @@ memberRoutes.delete("/:id", async (c) => {
   return c.json({ ok: true });
 });
 
+const MAX_PHOTO_BYTES = 5 * 1024 * 1024;
+
+// Pick the stored extension from the file's actual bytes, never from the
+// client-supplied filename, so an uploaded .svg/.html can't be served as one.
+function detectImageExt(b: Buffer): ".png" | ".jpg" | ".webp" | null {
+  if (b.length >= 8 && b.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]))) {
+    return ".png";
+  }
+  if (b.length >= 3 && b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff) return ".jpg";
+  if (b.length >= 12 && b.toString("ascii", 0, 4) === "RIFF" && b.toString("ascii", 8, 12) === "WEBP") {
+    return ".webp";
+  }
+  return null;
+}
+
 memberRoutes.post("/:id/photo", async (c) => {
   const orgId = (c.get("user") as AuthUser).organization_id;
   const id = c.req.param("id");
@@ -231,15 +252,23 @@ memberRoutes.post("/:id/photo", async (c) => {
     return c.json({ error: "No photo provided" }, 400);
   }
 
+  if (photo.size > MAX_PHOTO_BYTES) {
+    return c.json({ error: "Photo must be 5 MB or smaller" }, 413);
+  }
+
+  const bytes = Buffer.from(await photo.arrayBuffer());
+  const ext = detectImageExt(bytes);
+  if (!ext) {
+    return c.json({ error: "Photo must be a PNG, JPEG or WebP image" }, 400);
+  }
+
   const uploadDir = join("uploads", orgId);
   await mkdir(uploadDir, { recursive: true });
 
-  const ext = photo.name.includes(".") ? `.${photo.name.split(".").pop()}` : "";
   const fileName = `${crypto.randomUUID()}${ext}`;
   const filePath = join(uploadDir, fileName);
 
-  const arrayBuffer = await photo.arrayBuffer();
-  await writeFile(filePath, Buffer.from(arrayBuffer));
+  await writeFile(filePath, bytes);
 
   const photoUrl = `/uploads/${orgId}/${fileName}`;
 

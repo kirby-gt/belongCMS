@@ -20,7 +20,7 @@ psql church_membership -f db/schema.sql
 ```
 cd api
 npm install
-cp .env.example .env   # edit DATABASE_URL if needed
+cp .env.example .env   # set JWT_SECRET (openssl rand -hex 32); edit DATABASE_URL if needed
 npm run dev
 ```
 API runs on http://localhost:3001
@@ -52,11 +52,13 @@ cp docker-compose.override.yml.example docker-compose.override.yml   # publishes
 docker compose up -d --build
 ```
 
-This starts Postgres (5432), the API (3001), and the web app. The web container's
+This starts Postgres, the API, and the web app. Only `web` gets a host port;
+Postgres and the API are reachable only inside the compose network. The web container's
 Nginx serves the frontend **and reverse-proxies `/api` to the API**, so the whole
 app is one origin — no CORS, and it works the same over a bare IP or a domain.
-`db`/`api` publish ports for convenience; `web` gets its host port from the
-override file (or from Traefik labels — below).
+`web` gets its host port from the override file (or from Traefik labels — below).
+Don't publish `db`/`api` ports on a server: Docker-published ports bypass
+host firewalls such as ufw.
 
 Seed your first admin user:
 ```
@@ -102,9 +104,9 @@ docker inspect "$(docker compose ps -q web)" \
 curl -sI https://belongcms.org | head -1
 ```
 
-Traefik fetches the cert on first request (~1 min). `web` has no published port
-in this mode; `db`/`api` still publish 5432/3001 — firewall them or add
-`ports: !reset []` overrides if that matters.
+Traefik fetches the cert on first request (~1 min). No container publishes a
+host port in this mode — Traefik reaches `web` over the bridge network, and
+`db`/`api` are internal only.
 
 ## What's built (v1)
 
