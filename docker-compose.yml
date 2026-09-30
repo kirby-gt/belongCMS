@@ -5,12 +5,14 @@ services:
     environment:
       POSTGRES_DB: church_membership
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?set DB_PASSWORD in .env}
     volumes:
       - db_data:/var/lib/postgresql/data
       - ./db/schema.sql:/docker-entrypoint-initdb.d/schema.sql
-    ports:
-      - "5432:5432"
+    # No host port: only the api container talks to Postgres, over the compose
+    # network. Docker-published ports bypass host firewalls like ufw, so
+    # publishing 5432 here exposed the database to the internet. For local
+    # tooling, publish it from docker-compose.override.yml instead.
 
   api:
     build: ./api
@@ -18,8 +20,8 @@ services:
     depends_on:
       - db
     environment:
-      DATABASE_URL: postgres://postgres:${DB_PASSWORD:-postgres}@db:5432/church_membership
-      JWT_SECRET: ${JWT_SECRET:-change-this-secret-in-production}
+      DATABASE_URL: postgres://postgres:${DB_PASSWORD:?set DB_PASSWORD in .env}@db:5432/church_membership
+      JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET in .env}
       PORT: 3001
       # Password-reset email. Without RESEND_API_KEY the reset link is logged to
       # the api container's stdout instead of emailed. Set APP_URL to the public
@@ -35,8 +37,8 @@ services:
       PAYMENT_ALERT_EMAIL: ${PAYMENT_ALERT_EMAIL:-}
     volumes:
       - uploads_data:/app/uploads
-    ports:
-      - "3001:3001"
+    # No host port: the web container's nginx proxies /api -> api:3001 over the
+    # compose network, so publishing 3001 only let clients skip nginx.
 
   web:
     build:

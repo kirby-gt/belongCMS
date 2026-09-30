@@ -2,7 +2,14 @@ import type { Context, Next } from "hono";
 import jwt from "jsonwebtoken";
 import { query } from "./db.js";
 
-const JWT_SECRET = process.env.JWT_SECRET || "change-this-secret-in-production";
+// Refuse to start with a missing, short, or known-placeholder secret: anyone who
+// knows the signing key can forge a token for any user in any church.
+const JWT_SECRET = process.env.JWT_SECRET ?? "";
+if (JWT_SECRET.length < 32 || JWT_SECRET === "change-this-secret-in-production") {
+  throw new Error(
+    "JWT_SECRET must be set to a random value of at least 32 characters (e.g. `openssl rand -hex 32`)."
+  );
+}
 
 export interface AuthUser {
   id: string;
@@ -23,7 +30,7 @@ export async function requireAuth(c: Context, next: Next) {
   }
   try {
     const token = header.slice(7);
-    const user = jwt.verify(token, JWT_SECRET) as AuthUser;
+    const user = jwt.verify(token, JWT_SECRET, { algorithms: ["HS256"] }) as AuthUser;
     c.set("user", user);
     await next();
   } catch {

@@ -1,6 +1,10 @@
 node_modules/
 dist/
 .env
+# Backup copies of .env (e.g. .env.backup, .env.bak.<date>) hold the same
+# secrets; only the example files are meant to be tracked.
+.env.*
+!.env.example
 *.log
 
 # Per-developer local Docker overrides (restores localhost ports for running the

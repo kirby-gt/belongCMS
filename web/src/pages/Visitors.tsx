@@ -76,9 +76,18 @@ export default function Visitors() {
         `<p style="margin:0 0 24px;color:#555">Scan with your phone camera to check in</p>` +
         `<img src="${qrDataUrl}" alt="QR code" style="width:340px;height:340px" />` +
         `<p style="font-size:12px;color:#777;margin-top:16px;word-break:break-all">${esc(checkinUrl)}</p>` +
-        `<script>window.onload=function(){window.print()}</scr` + `ipt></body></html>`
+        `</body></html>`
     );
     w.document.close();
+    // Print from here rather than an inline <script> in the popup: the popup
+    // inherits this page's CSP, which blocks inline scripts.
+    const img = w.document.querySelector("img");
+    const doPrint = () => {
+      w.focus();
+      w.print();
+    };
+    if (!img || img.complete) doPrint();
+    else img.addEventListener("load", doPrint, { once: true });
   }
 
   async function toggleEnabled() {
