@@ -97,6 +97,7 @@ export const api = {
   getHouseholdMembers: (id: string) => request(`/households/${id}/members`),
 
   getMinistries: () => request("/ministries"),
+  createMinistry: (data: { name: string }) => request("/ministries", { method: "POST", body: JSON.stringify(data) }),
 
   getDashboardSummary: () => request("/dashboard/summary"),
 

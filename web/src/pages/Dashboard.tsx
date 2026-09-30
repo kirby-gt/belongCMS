@@ -77,15 +77,24 @@ export default function Dashboard() {
       </div>
 
       <div className="stat-grid">
-        <StatCard label="Total members" value={data.totals.members} />
-        <StatCard label="Households" value={data.totals.households} />
-        <StatCard label="Ministries" value={data.totals.ministries} />
+        <StatCard label="Total members" value={data.totals.members} to="/members" />
+        <StatCard label="Households" value={data.totals.households} to="/households" />
+        <StatCard label="Ministries" value={data.totals.ministries} to="/ministries" />
         <StatCard
           label={`Avg. attendance (${thisMonth})`}
           value={data.attendance_this_month.average_attendance ?? "—"}
+          to="/attendance"
         />
-        <StatCard label={`Visitors (${thisMonth})`} value={data.attendance_this_month.total_visitors} />
-        <StatCard label="Birthdays this week" value={data.upcoming_birthdays.length} />
+        <StatCard
+          label={`Visitors (${thisMonth})`}
+          value={data.attendance_this_month.total_visitors}
+          to="/attendance"
+        />
+        <StatCard
+          label="Birthdays this week"
+          value={data.upcoming_birthdays.length}
+          to="/reports/milestones"
+        />
       </div>
 
       <div className="dashboard-grid">
