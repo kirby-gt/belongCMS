@@ -17,6 +17,8 @@ import MembersList from "./pages/MembersList";
 import MemberForm from "./pages/MemberForm";
 import ImportMembers from "./pages/ImportMembers";
 import Visitors from "./pages/Visitors";
+import Ministries from "./pages/Ministries";
+import Households from "./pages/Households";
 import VisitorCheckin from "./pages/VisitorCheckin";
 import Admin from "./pages/Admin";
 import Reports from "./pages/Reports";
@@ -58,6 +60,8 @@ function App() {
                 <Route path="/members/import" element={<ImportMembers />} />
                 <Route path="/members/:id" element={<MemberForm />} />
                 <Route path="/visitors" element={<Visitors />} />
+                <Route path="/ministries" element={<Ministries />} />
+                <Route path="/households" element={<Households />} />
               </Route>
             </Route>
           </Routes>

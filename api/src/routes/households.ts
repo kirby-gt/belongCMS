@@ -1,4 +1,5 @@
 import { Hono } from "hono";
+import { z } from "zod";
 import { query } from "../db.js";
 import type { AuthUser } from "../auth.js";
 
@@ -18,12 +19,20 @@ householdRoutes.get("/", async (c) => {
   return c.json(rows);
 });
 
+const householdSchema = z.object({
+  name: z.string().trim().min(1).max(120),
+  address: z.string().trim().max(300).optional().nullable(),
+});
+
 householdRoutes.post("/", async (c) => {
   const orgId = (c.get("user") as AuthUser).organization_id;
-  const { name, address } = await c.req.json();
+  const parsed = householdSchema.safeParse(await c.req.json().catch(() => ({})));
+  if (!parsed.success) {
+    return c.json({ error: "Household name is required (max 120 characters; address max 300)" }, 400);
+  }
   const rows = await query(
     "insert into households (organization_id, name, address) values ($1, $2, $3) returning *",
-    [orgId, name, address ?? null]
+    [orgId, parsed.data.name, parsed.data.address || null]
   );
   return c.json(rows[0], 201);
 });
