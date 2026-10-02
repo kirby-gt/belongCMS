@@ -73,6 +73,22 @@ create table if not exists ministries (
 
 create index if not exists idx_ministries_org on ministries(organization_id);
 
+-- New churches get a starter set of ministries at signup (see /auth/signup).
+-- This flag makes the backfill below run once per org, so a church that later
+-- deletes or never wants the defaults isn't re-seeded every time this file is
+-- re-applied.
+alter table organizations add column if not exists starter_ministries_seeded boolean not null default false;
+
+insert into ministries (organization_id, name)
+select o.id, s.name
+from organizations o
+cross join (values ('Women''s Ministries'), ('Men''s Ministries'), ('Worship'), ('Choir'), ('Youth'), ('Sunday School')) as s(name)
+where not o.starter_ministries_seeded
+  and not exists (select 1 from ministries m where m.organization_id = o.id)
+on conflict (organization_id, name) do nothing;
+
+update organizations set starter_ministries_seeded = true where not starter_ministries_seeded;
+
 create table if not exists member_ministries (
   member_id uuid not null references members(id) on delete cascade,
   ministry_id uuid not null references ministries(id) on delete cascade,

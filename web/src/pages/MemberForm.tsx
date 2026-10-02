@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import { api } from "../api";
 
 const emptyForm = {
@@ -28,6 +28,7 @@ export default function MemberForm() {
   const [form, setForm] = useState({ ...emptyForm });
   const [households, setHouseholds] = useState<any[]>([]);
   const [ministries, setMinistries] = useState<any[]>([]);
+  const [ministriesError, setMinistriesError] = useState("");
   const [newHouseholdName, setNewHouseholdName] = useState("");
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
@@ -35,7 +36,10 @@ export default function MemberForm() {
 
   useEffect(() => {
     api.getHouseholds().then(setHouseholds);
-    api.getMinistries().then(setMinistries);
+    api
+      .getMinistries()
+      .then(setMinistries)
+      .catch((err) => setMinistriesError(err.message || "Couldn't load ministries"));
     if (isEdit && id) {
       api.getMember(id).then((m) =>
         setForm({
@@ -225,6 +229,12 @@ export default function MemberForm() {
             </label>
           ))}
         </div>
+        {ministriesError && <p className="error">{ministriesError}</p>}
+        {!ministriesError && ministries.length === 0 && (
+          <p className="field-hint">
+            No ministries yet. <Link to="/ministries">Add some on the Ministries page</Link>, then come back to assign them.
+          </p>
+        )}
 
         <label>Household</label>
         <select value={form.household_id} onChange={(e) => update("household_id", e.target.value)}>
