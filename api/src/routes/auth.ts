@@ -9,6 +9,9 @@ import crypto from "node:crypto";
 export const authRoutes = new Hono();
 
 const TRIAL_DAYS = 14;
+// Every new church starts with these ministries so the member form isn't empty.
+// Keep in sync with the backfill in db/schema.sql.
+const STARTER_MINISTRIES = ["Women's Ministries", "Men's Ministries", "Worship", "Choir", "Youth", "Sunday School"];
 // Where the reset link points — the web app's origin, not the API's.
 const APP_URL = process.env.APP_URL || "http://localhost:5173";
 
@@ -91,12 +94,17 @@ authRoutes.post("/signup", async (c) => {
     }
 
     const orgRows = await client.query(
-      `insert into organizations (name, slug, plan_status, trial_ends_at, public_intake_token)
-       values ($1, $2, 'trialing', $3, $4)
+      `insert into organizations (name, slug, plan_status, trial_ends_at, public_intake_token, starter_ministries_seeded)
+       values ($1, $2, 'trialing', $3, $4, true)
        returning id`,
       [body.organization_name, slug, trialEndsAt, crypto.randomBytes(16).toString("hex")]
     );
     const organizationId = orgRows.rows[0].id;
+
+    await client.query(
+      "insert into ministries (organization_id, name) select $1, unnest($2::text[])",
+      [organizationId, STARTER_MINISTRIES]
+    );
 
     const userRows = await client.query(
       `insert into users (organization_id, name, email, password_hash, role)
